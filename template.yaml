@@ -72,7 +72,10 @@ Resources:
         # Readable bundle in the Lambda console and named identifiers in stack traces. ~1.4 MB
         # instead of ~400 KB — irrelevant at this size; flip to true if the bundle ever grows large.
         Minify: false
-        Sourcemap: false
+        # Emits handler.mjs.map and sets NODE_OPTIONS=--enable-source-maps, so CloudWatch stack
+        # traces point at the original src/**/*.ts lines instead of positions in the bundle.
+        Sourcemap: true
+        SourcesContent: false
     Properties:
       FunctionName: !Sub ${AWS::StackName}-poller
       CodeUri: .
