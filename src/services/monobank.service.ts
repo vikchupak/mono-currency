@@ -92,7 +92,7 @@ function assertCurrencyResponse(body: unknown): MonobankCurrencyResponse {
 }
 
 /** Finds the entry for a currency pair (ISO 4217 numeric codes) in a Monobank response. */
-export function findPair(
+function findPair(
   body: MonobankCurrencyResponse,
   codeA: number,
   codeB: number,
@@ -101,7 +101,7 @@ export function findPair(
 }
 
 /** Extracts and validates the USD/UAH entry from a Monobank payload. */
-export function parseUsdUah(body: unknown): IRate {
+function parseUsdUah(body: unknown): IRate {
   const entry = findPair(assertCurrencyResponse(body), ISO_USD, ISO_UAH);
 
   if (!entry) {
