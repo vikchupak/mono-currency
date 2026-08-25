@@ -69,7 +69,9 @@ Resources:
         # becomes a throwing shim under Format: esm and crashes on the first SDK call.
         MainFields: module,main
         Target: es2022
-        Minify: true
+        # Readable bundle in the Lambda console and named identifiers in stack traces. ~1.4 MB
+        # instead of ~400 KB — irrelevant at this size; flip to true if the bundle ever grows large.
+        Minify: false
         Sourcemap: false
     Properties:
       FunctionName: !Sub ${AWS::StackName}-poller
