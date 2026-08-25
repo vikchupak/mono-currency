@@ -7,7 +7,7 @@ import type {
 } from '../interfaces.ts';
 import type { MonobankCurrencyResponse } from '../types.ts';
 import { errorMessage } from '../utils/errors.util.ts';
-import { isObject } from '../utils/type-guards.util.ts';
+import { isFiniteNumber, isObject } from '../utils/type-guards.util.ts';
 
 /**
  * Thin client for Monobank's public (unauthenticated) API.
@@ -76,8 +76,8 @@ export class MonobankApiService implements IMonobankApiService {
     const wellFormed = body.every(
       (item) =>
         isObject(item) &&
-        typeof item.currencyCodeA === 'number' &&
-        typeof item.currencyCodeB === 'number',
+        isFiniteNumber(item.currencyCodeA) &&
+        isFiniteNumber(item.currencyCodeB),
     );
 
     if (!wellFormed) {
@@ -115,8 +115,8 @@ export class MonobankApiService implements IMonobankApiService {
   private _requireFiniteNumber(entry: IMonobankCurrencyRate, field: keyof IMonobankCurrencyRate): number {
     const value: unknown = entry[field];
 
-    if (typeof value !== 'number' || !Number.isFinite(value)) {
-      throw new Error(`USD/UAH ${field} is missing or not a number`);
+    if (!isFiniteNumber(value)) {
+      throw new Error(`USD/UAH ${field} is missing or not a finite number`);
     }
 
     return value;
