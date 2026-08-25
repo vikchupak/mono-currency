@@ -1,0 +1,25 @@
+{
+  "name": "mono-currency",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AWS Lambda that polls Monobank USD/UAH every minute, records changes to DynamoDB and notifies Telegram",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "sam build"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1117.0",
+    "@aws-sdk/client-ssm": "^3.1117.0",
+    "@aws-sdk/lib-dynamodb": "^3.1117.0",
+    "esbuild": "^0.28.2"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.162",
+    "@types/node": "^22.20.1",
+    "typescript": "^7.0.2"
+  }
+}

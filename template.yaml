@@ -1,0 +1,113 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  mono-currency: polls Monobank USD/UAH every minute, records every rate change
+  to DynamoDB and sends a Telegram notification.
+
+Parameters:
+  SsmPrefix:
+    Type: String
+    Default: mono-currency/telegram
+    Description: >
+      SSM Parameter Store path (without leading slash) that holds the SecureString
+      parameters `bot-token` and `chat-id`.
+  ScheduleExpression:
+    Type: String
+    Default: rate(1 minute)
+    Description: EventBridge Scheduler expression for how often to poll Monobank.
+  LogRetentionDays:
+    Type: Number
+    Default: 14
+
+Globals:
+  Function:
+    Runtime: nodejs22.x
+    Architectures:
+      - arm64
+    Timeout: 20
+    MemorySize: 256
+
+Resources:
+  RatesTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Sub ${AWS::StackName}-rates
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+
+  PollerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${AWS::StackName}-poller
+      RetentionInDays: !Ref LogRetentionDays
+
+  PollerFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      # SAM installs deps with `npm install --omit=dev` before bundling, so esbuild is a
+      # regular dependency in package.json (it never ships — the bundle is a single file).
+      BuildProperties:
+        EntryPoints:
+          - src/handler.ts
+        Format: esm
+        OutExtension:
+          - .js=.mjs
+        # Prefer the ESM builds of @aws-sdk/* and @smithy/*. With the default
+        # (main,module) esbuild picks their CommonJS builds, whose require("node:https")
+        # becomes a throwing shim under Format: esm and crashes on the first SDK call.
+        MainFields: module,main
+        Target: es2022
+        Minify: true
+        Sourcemap: false
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-poller
+      CodeUri: .
+      Handler: handler.handler
+      Description: Polls Monobank USD/UAH; records changes to DynamoDB; notifies Telegram.
+      LoggingConfig:
+        LogGroup: !Ref PollerLogGroup
+        LogFormat: JSON
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref RatesTable
+          SSM_PREFIX: !Sub /${SsmPrefix}
+          PAIR: USD_UAH
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RatesTable
+        - SSMParameterReadPolicy:
+            ParameterName: !Sub ${SsmPrefix}/*
+      Events:
+        Poll:
+          Type: ScheduleV2
+          Properties:
+            ScheduleExpression: !Ref ScheduleExpression
+            FlexibleTimeWindow:
+              Mode: 'OFF'
+            RetryPolicy:
+              # The next tick is the retry; don't pile up delayed invocations.
+              MaximumRetryAttempts: 0
+              MaximumEventAgeInSeconds: 60
+
+Outputs:
+  TableName:
+    Description: DynamoDB table holding LATEST + history rows
+    Value: !Ref RatesTable
+  FunctionName:
+    Description: Poller Lambda function name
+    Value: !Ref PollerFunction
+  LogGroupName:
+    Description: CloudWatch log group for the poller
+    Value: !Ref PollerLogGroup

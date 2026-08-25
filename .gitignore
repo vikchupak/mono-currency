@@ -1,0 +1,10 @@
+node_modules/
+.aws-sam/
+dist/
+.env
+.env.*
+*.log
+
+# Contains plaintext API keys — never commit
+.mcp.json
+.claude/

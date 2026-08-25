@@ -1,0 +1,16 @@
+# SAM CLI configuration — stack name, region, AWS profile, deploy defaults. Contains no secrets.
+version = 0.1
+
+[default.global.parameters]
+stack_name = "mono-currency"
+region = "eu-central-1"
+
+[default.deploy.parameters]
+resolve_s3 = true
+s3_prefix = "mono-currency"
+region = "eu-central-1"
+profile = "mono"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "SsmPrefix=\"mono-currency/telegram\" ScheduleExpression=\"rate(1 minute)\" LogRetentionDays=\"14\""
+image_repositories = []
