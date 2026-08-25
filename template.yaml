@@ -75,6 +75,10 @@ Resources:
       FunctionName: !Sub ${AWS::StackName}-poller
       CodeUri: .
       Handler: handler.handler
+      # Every deploy publishes an immutable numbered version and repoints the `live` alias at it.
+      # The schedule invokes the alias, so Lambda console → Versions / Aliases shows the history and
+      # a previous version can be restored by editing the alias (no redeploy needed).
+      AutoPublishAlias: live
       Description: Polls Monobank USD/UAH; records changes to DynamoDB; notifies Telegram.
       LoggingConfig:
         LogGroup: !Ref PollerLogGroup
@@ -111,3 +115,6 @@ Outputs:
   LogGroupName:
     Description: CloudWatch log group for the poller
     Value: !Ref PollerLogGroup
+  LiveVersionArn:
+    Description: Function version the `live` alias points at after this deploy (ARN ends in the version number)
+    Value: !Ref PollerFunction.Version

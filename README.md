@@ -176,6 +176,33 @@ aws dynamodb query --profile mono --table-name mono-currency-rates --no-scan-ind
 | `Telegram sendMessage failed: HTTP 401`        | Wrong bot token.                                                                                         |
 | `Cannot find esbuild` during `sam build`       | esbuild must be in `dependencies` (it is) and `npm ci` must have run.                                    |
 
+## Versions and rollback
+
+Every `sam deploy` publishes an immutable **Lambda version** (`1`, `2`, `3`, …) and moves the `live`
+alias to it (`AutoPublishAlias: live` in `template.yaml`). The schedule invokes the alias, never
+`$LATEST`.
+
+- **See them:** Lambda console → `mono-currency-poller` → **Versions** tab (code + config snapshots)
+  and **Aliases** tab (`live` → current version). Or:
+
+  ```bash
+  aws lambda list-versions-by-function --profile mono --function-name mono-currency-poller \
+    --query 'Versions[].{Version:Version,Modified:LastModified,Description:Description}' --output table
+  aws lambda get-alias --profile mono --function-name mono-currency-poller --name live
+  ```
+
+- **Roll back instantly** (no build, no deploy) by pointing the alias at an older version:
+
+  ```bash
+  aws lambda update-alias --profile mono --function-name mono-currency-poller --name live --function-version 2
+  ```
+
+  The next tick runs version 2. The next `sam deploy` publishes a new version and moves the alias
+  forward again, so a rollback is a temporary measure — fix the code and deploy to make it permanent.
+
+- **Deploy history** (which template/changeset was applied when): CloudFormation console → Stacks →
+  `mono-currency` → **Events** and **Change sets** tabs.
+
 ## Remove
 
 ```bash
