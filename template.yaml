@@ -13,7 +13,7 @@ Parameters:
       parameters `bot-token` and `chat-id`.
   ScheduleExpression:
     Type: String
-    Default: rate(1 minute)
+    Default: rate(2 minutes)
     Description: EventBridge Scheduler expression for how often to poll Monobank.
   LogRetentionDays:
     Type: Number

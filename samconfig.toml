@@ -12,5 +12,5 @@ region = "eu-central-1"
 profile = "mono"
 confirm_changeset = true
 capabilities = "CAPABILITY_IAM"
-parameter_overrides = "SsmPrefix=\"mono-currency/telegram\" ScheduleExpression=\"rate(1 minute)\" LogRetentionDays=\"14\""
+parameter_overrides = "SsmPrefix=\"mono-currency/telegram\" ScheduleExpression=\"rate(2 minutes)\" LogRetentionDays=\"14\""
 image_repositories = []

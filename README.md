@@ -1,7 +1,7 @@
 # mono-currency
 
 An AWS Lambda that polls [Monobank's public currency API](https://api.monobank.ua/bank/currency)
-every minute for the **USD → UAH** rate. Whenever the buy **or** sell rate differs from the last
+every two minutes for the **USD → UAH** rate. Whenever the buy **or** sell rate differs from the last
 recorded value it writes the new rate to DynamoDB and sends a Telegram message:
 
 ```
@@ -14,7 +14,7 @@ Sell: 44.831 → 44.85 (▲ +0.019)
 ## How it works
 
 ```
-EventBridge Scheduler  rate(1 minute)
+EventBridge Scheduler  rate(2 minutes)
    └─> Lambda  mono-currency-poller  (Node.js 22, arm64, TypeScript bundled by esbuild)
           ├─ GET https://api.monobank.ua/bank/currency
           ├─ SSM Parameter Store  /mono-currency/telegram/{bot-token,chat-id}   (read once per cold start)
@@ -142,12 +142,12 @@ sam deploy --profile mono
 asks for confirmation. Re-run the same four commands for every update.
 
 Stack parameters (override with `--parameter-overrides Key=Value`): `SsmPrefix`
-(default `mono-currency/telegram`), `ScheduleExpression` (default `rate(1 minute)`),
+(default `mono-currency/telegram`), `ScheduleExpression` (default `rate(2 minutes)`),
 `LogRetentionDays` (default `14`).
 
 ## Verify
 
-Within a minute of the first deploy you should receive **"✅ USD/UAH monitoring started"** in Telegram.
+Within two minutes of the first deploy you should receive **"✅ USD/UAH monitoring started"** in Telegram.
 
 ```bash
 # Follow the logs — first tick logs {"event":"first-run"}, later ones {"event":"unchanged"}
@@ -156,7 +156,7 @@ sam logs --stack-name mono-currency --profile mono --tail
 # Trigger a tick by hand instead of waiting for the schedule
 aws lambda invoke --profile mono --function-name mono-currency-poller --no-cli-pager /dev/stdout
 
-# Force the "changed" path: corrupt LATEST, then wait ≤ 1 minute for a "USD/UAH changed" message
+# Force the "changed" path: corrupt LATEST, then wait ≤ 2 minutes for a "USD/UAH changed" message
 aws dynamodb update-item --profile mono --table-name mono-currency-rates \
   --key '{"pk":{"S":"USD_UAH"},"sk":{"S":"LATEST"}}' \
   --update-expression 'SET rateBuy = :one' --expression-attribute-values '{":one":{"N":"1"}}'
@@ -220,8 +220,8 @@ aws ssm delete-parameters --profile mono \
 - **DB before Telegram.** The rate is written to DynamoDB first, then the message is sent. If Telegram
   fails, the invocation errors (visible in CloudWatch) but the change is **not** re-notified on the next
   tick, because LATEST already holds the new rate. Preferable to the reverse (duplicate messages).
-- **No scheduler retries.** `MaximumRetryAttempts: 0` — the next minute is the retry.
-- **Cost.** ~43k invocations/month: Lambda, DynamoDB on-demand, EventBridge Scheduler and SSM all stay
+- **No scheduler retries.** `MaximumRetryAttempts: 0` — the next tick is the retry.
+- **Cost.** ~22k invocations/month: Lambda, DynamoDB on-demand, EventBridge Scheduler and SSM all stay
   within their free tiers; DynamoDB usage is under one cent/month even without it. Logs are kept 14 days.
 - **esbuild is a regular `dependency`.** `sam build` installs packages with `npm install --omit=dev`
   before bundling, so a devDependency esbuild would never be found. It doesn't ship to Lambda — the
