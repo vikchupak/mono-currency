@@ -34,8 +34,7 @@ export class ConfigService implements IConfigService {
 
   /** `<ssmPrefix>/bot-token` and `<ssmPrefix>/chat-id`, decrypted. A failed lookup is not cached. */
   async getTelegramSecrets(): Promise<ITelegramSecrets> {
-    this._telegramSecrets ??= await this._fetchTelegramSecrets();
-    return this._telegramSecrets;
+    return (this._telegramSecrets ??= await this._fetchTelegramSecrets());
   }
 
   private async _fetchTelegramSecrets(): Promise<ITelegramSecrets> {

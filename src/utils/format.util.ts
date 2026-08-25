@@ -18,6 +18,7 @@ export function formatKyivTime(epochSeconds: number): string {
   for (const { type, value } of kyivFormatter.formatToParts(new Date(epochSeconds * 1000))) {
     parts[type] = value;
   }
+
   return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`;
 }
 
@@ -26,12 +27,16 @@ export function formatDelta(delta: number): string {
   if (d === 0) {
     return 'no change';
   }
+
   return d > 0 ? `▲ +${d}` : `▼ ${d}`;
 }
 
 function rateLine(label: string, prev: number, next: number): string {
   const delta = roundToDecimalPlaces(next - prev, RATE_DECIMAL_PLACES);
-  return delta === 0 ? `${label}: ${next} (no change)` : `${label}: ${prev} → ${next} (${formatDelta(delta)})`;
+
+  return delta === 0
+    ? `${label}: ${next} (no change)`
+    : `${label}: ${prev} → ${next} (${formatDelta(delta)})`;
 }
 
 /** The bank's own publication time for this quote (not the time of our check). */

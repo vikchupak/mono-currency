@@ -19,6 +19,7 @@ export class DynamoRateStoreService implements IRateStoreService {
     const doc = DynamoDBDocumentClient.from(new DynamoDBClient({}), {
       marshallOptions: { removeUndefinedValues: true },
     });
+
     return new DynamoRateStoreService(doc, tableName, pair);
   }
 
@@ -30,9 +31,11 @@ export class DynamoRateStoreService implements IRateStoreService {
         ConsistentRead: true,
       }),
     );
+
     if (!Item) {
       return null;
     }
+
     return {
       rateBuy: Item.rateBuy as number,
       rateSell: Item.rateSell as number,
@@ -51,8 +54,12 @@ export class DynamoRateStoreService implements IRateStoreService {
       updatedAt,
       prevBuy: prev?.rateBuy ?? null,
       prevSell: prev?.rateSell ?? null,
-      deltaBuy: prev ? roundToDecimalPlaces(next.rateBuy - prev.rateBuy, RATE_DECIMAL_PLACES) : null,
-      deltaSell: prev ? roundToDecimalPlaces(next.rateSell - prev.rateSell, RATE_DECIMAL_PLACES) : null,
+      deltaBuy: prev
+        ? roundToDecimalPlaces(next.rateBuy - prev.rateBuy, RATE_DECIMAL_PLACES)
+        : null,
+      deltaSell: prev
+        ? roundToDecimalPlaces(next.rateSell - prev.rateSell, RATE_DECIMAL_PLACES)
+        : null,
     };
 
     await this._doc.send(
