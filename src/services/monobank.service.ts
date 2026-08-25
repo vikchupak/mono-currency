@@ -7,6 +7,7 @@ import type {
 } from '../interfaces.ts';
 import type { MonobankCurrencyResponse } from '../types.ts';
 import { errorMessage } from '../utils/errors.util.ts';
+import { isObject } from '../utils/type-guards.util.ts';
 
 /**
  * Thin client for Monobank's public (unauthenticated) API.
@@ -57,70 +58,67 @@ export class MonobankApiService implements IMonobankApiService {
       throw new Error(`Monobank returned invalid JSON: ${errorMessage(err)}`, { cause: err });
     }
 
-    return assertCurrencyResponse(body);
+    return this._assertCurrencyResponse(body);
   }
 
   /** The USD/UAH buy/sell quote, or `null` when rate-limited. */
   async getUsdUah(): Promise<IRate | null> {
     const rates = await this.getCurrencyRates();
-    return rates ? parseUsdUah(rates) : null;
-  }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
-
-/** Narrows an untrusted body to the documented response shape (pair codes only; rates are validated per use). */
-function assertCurrencyResponse(body: unknown): MonobankCurrencyResponse {
-  if (!Array.isArray(body)) {
-    throw new Error('Monobank payload is not an array');
+    return rates ? this._parseUsdUah(rates) : null;
   }
 
-  const wellFormed = body.every(
-    (item) =>
-      isRecord(item) &&
-      typeof item.currencyCodeA === 'number' &&
-      typeof item.currencyCodeB === 'number',
-  );
+  /** Narrows an untrusted body to the documented response shape (pair codes only; rates are validated per use). */
+  private _assertCurrencyResponse(body: unknown): MonobankCurrencyResponse {
+    if (!Array.isArray(body)) {
+      throw new Error('Monobank payload is not an array');
+    }
 
-  if (!wellFormed) {
-    throw new Error('Monobank payload entries are missing currency codes');
+    const wellFormed = body.every(
+      (item) =>
+        isObject(item) &&
+        typeof item.currencyCodeA === 'number' &&
+        typeof item.currencyCodeB === 'number',
+    );
+
+    if (!wellFormed) {
+      throw new Error('Monobank payload entries are missing currency codes');
+    }
+
+    return body as MonobankCurrencyResponse;
   }
 
-  return body as MonobankCurrencyResponse;
-}
-
-/** Finds the entry for a currency pair (ISO 4217 numeric codes) in a Monobank response. */
-function findPair(
-  body: MonobankCurrencyResponse,
-  codeA: number,
-  codeB: number,
-): IMonobankCurrencyRate | undefined {
-  return body.find((item) => item.currencyCodeA === codeA && item.currencyCodeB === codeB);
-}
-
-/** Extracts and validates the USD/UAH entry from a Monobank payload. */
-function parseUsdUah(body: unknown): IRate {
-  const entry = findPair(assertCurrencyResponse(body), ISO_USD, ISO_UAH);
-
-  if (!entry) {
-    throw new Error('USD/UAH pair not present in Monobank payload');
+  /** Finds the entry for a currency pair (ISO 4217 numeric codes). */
+  private _findPair(
+    body: MonobankCurrencyResponse,
+    codeA: number,
+    codeB: number,
+  ): IMonobankCurrencyRate | undefined {
+    return body.find((item) => item.currencyCodeA === codeA && item.currencyCodeB === codeB);
   }
 
-  const { rateBuy, rateSell, date } = entry as Record<keyof IMonobankCurrencyRate, unknown>;
+  /** Extracts and validates the USD/UAH entry from a Monobank response. */
+  private _parseUsdUah(body: MonobankCurrencyResponse): IRate {
+    const entry = this._findPair(body, ISO_USD, ISO_UAH);
 
-  if (typeof rateBuy !== 'number' || !Number.isFinite(rateBuy)) {
-    throw new Error('USD/UAH rateBuy is missing or not a number');
+    if (!entry) {
+      throw new Error('USD/UAH pair not present in Monobank payload');
+    }
+
+    return {
+      rateBuy: this._requireFiniteNumber(entry, 'rateBuy'),
+      rateSell: this._requireFiniteNumber(entry, 'rateSell'),
+      monoDate: this._requireFiniteNumber(entry, 'date'),
+    };
   }
 
-  if (typeof rateSell !== 'number' || !Number.isFinite(rateSell)) {
-    throw new Error('USD/UAH rateSell is missing or not a number');
-  }
+  /** Reads a numeric field from a rate entry, failing loudly when it is absent or not a finite number. */
+  private _requireFiniteNumber(entry: IMonobankCurrencyRate, field: keyof IMonobankCurrencyRate): number {
+    const value: unknown = entry[field];
 
-  if (typeof date !== 'number' || !Number.isFinite(date)) {
-    throw new Error('USD/UAH date is missing or not a number');
-  }
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      throw new Error(`USD/UAH ${field} is missing or not a number`);
+    }
 
-  return { rateBuy, rateSell, monoDate: date };
+    return value;
+  }
 }
