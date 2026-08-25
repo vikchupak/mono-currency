@@ -56,7 +56,9 @@ src/
 │   ├── dynamo-store.service.ts      DynamoDB LATEST + history
 │   └── config.service.ts            env vars + SSM secrets
 ├── utils/                           formatting, rounding, error helpers
-├── interfaces.ts · types.ts · constants.ts
+├── constants.ts
+├── interfaces.ts
+├── types.ts
 template.yaml                        SAM: Lambda, schedule, table, log group, IAM
 samconfig.toml                       SAM CLI defaults (stack name, region, profile) — no secrets
 ```
